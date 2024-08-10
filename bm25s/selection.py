@@ -37,6 +37,36 @@ def _topk_numpy(query_scores, k, sorted):
     return query_scores, ind
 
 
+def _topk_numpy_nz(query_scores, k, sorted):
+    # first, find non-zero elements
+    non_zero_idxs = np.argwhere(query_scores > 0).flatten()
+    # if there are fewer non-zero elements than k, fallback to the normal numpy method
+    if len(non_zero_idxs) <= k:
+        return _topk_numpy(query_scores, k, sorted)
+    
+    query_scores = query_scores[non_zero_idxs]
+    idx_into_non_zero = np.argpartition(query_scores, -k)
+    idx_into_non_zero = idx_into_non_zero.take(indices=range(-k, 0))
+    
+    top_k_scores = query_scores[idx_into_non_zero]
+    top_k_idxs = non_zero_idxs[idx_into_non_zero]
+
+    if sorted:
+        # Since our top-k indices are not correctly ordered, we can sort them with argsort
+        # only if sorted=True (otherwise we keep it in an arbitrary order)
+        sorted_trunc_ind = np.flip(np.argsort(top_k_scores))
+
+        # We again use np.take_along_axis as we have an array of indices that we use to
+        # decide which values to select
+        query_scores = top_k_scores[sorted_trunc_ind]
+        ind = top_k_idxs[sorted_trunc_ind]
+
+    else:
+        query_scores = top_k_scores
+        ind = top_k_idxs
+
+    return query_scores, ind
+
 def _topk_jax(query_scores, k):
     topk_scores, topk_indices = jax.lax.top_k(query_scores, k)
     topk_scores = np.asarray(topk_scores)
@@ -54,11 +84,13 @@ def topk(query_scores, k, backend="auto", sorted=True):
         # if jax.lax is available, use it to speed up selection, otherwise use numpy
         backend = "jax" if JAX_IS_AVAILABLE else "numpy"
     
-    if backend not in ["numpy", "jax"]:
+    if backend not in ["numpy", "jax", "numpy_nz"]:
         raise ValueError("Invalid backend. Please choose from 'numpy' or 'jax'.")
     elif backend == "jax":
         if not JAX_IS_AVAILABLE:
             raise ImportError("JAX is not available. Please install JAX with `pip install jax[cpu]` to use this backend.")
         return _topk_jax(query_scores, k)
+    elif backend == "numpy_nz":
+        return _topk_numpy_nz(query_scores, k, sorted)
     else:
         return _topk_numpy(query_scores, k, sorted)
