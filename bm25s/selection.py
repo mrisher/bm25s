@@ -74,6 +74,19 @@ def _topk_jax(query_scores, k):
 
     return topk_scores, topk_indices
 
+def _topk_jax_nz(query_scores, k):
+    non_zero_idxs = np.argwhere(query_scores != 0).flatten()
+    if len(non_zero_idxs) <= k:
+        return _topk_jax(query_scores, k)
+    
+    non_zero_scores = query_scores[non_zero_idxs]
+    topk_scores, topk_indices = jax.lax.top_k(non_zero_scores, k)
+    
+    topk_indices = np.asarray(topk_indices)
+    topk_indices_original = np.asarray(non_zero_idxs[topk_indices])
+    topk_scores = np.asarray(topk_scores)
+
+    return topk_scores, topk_indices_original
 
 def topk(query_scores, k, backend="auto", sorted=True):
     """
@@ -84,7 +97,7 @@ def topk(query_scores, k, backend="auto", sorted=True):
         # if jax.lax is available, use it to speed up selection, otherwise use numpy
         backend = "jax" if JAX_IS_AVAILABLE else "numpy"
     
-    if backend not in ["numpy", "jax", "numpy_nz"]:
+    if backend not in ["numpy", "jax", "numpy_nz", "jax_nz"]:
         raise ValueError("Invalid backend. Please choose from 'numpy' or 'jax'.")
     elif backend == "jax":
         if not JAX_IS_AVAILABLE:
@@ -92,5 +105,9 @@ def topk(query_scores, k, backend="auto", sorted=True):
         return _topk_jax(query_scores, k)
     elif backend == "numpy_nz":
         return _topk_numpy_nz(query_scores, k, sorted)
+    elif backend == "jax_nz":
+        if not JAX_IS_AVAILABLE:
+            raise ImportError("JAX is not available. Please install JAX with `pip install jax[cpu]` to use this backend.")
+        return _topk_jax_nz(query_scores, k)
     else:
         return _topk_numpy(query_scores, k, sorted)
