@@ -39,7 +39,7 @@ def _topk_numpy(query_scores, k, sorted):
 
 def _topk_numpy_nz(query_scores, k, sorted):
     # first, find non-zero elements
-    non_zero_idxs = np.argwhere(query_scores > 0).flatten()
+    non_zero_idxs = np.argwhere(query_scores != 0).flatten()
     # if there are fewer non-zero elements than k, fallback to the normal numpy method
     if len(non_zero_idxs) <= k:
         return _topk_numpy(query_scores, k, sorted)
