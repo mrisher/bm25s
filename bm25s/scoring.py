@@ -343,10 +343,24 @@ def _compute_relevance_from_scores_jit_ready(
     indptr_ends = indptr[query_tokens_ids + 1]
 
     scores = np.zeros(num_docs, dtype=dtype)
+    doc_indices_with_data = np.empty(indices.shape[0], dtype=np.int32)
+    diwd_ptr = 0
+
     for i in range(len(query_tokens_ids)):
         start, end = indptr_starts[i], indptr_ends[i]
         # The following code is slower with numpy, but faster after JIT compilation
         for j in range(start, end):
-            scores[indices[j]] += data[j]
+            # only write if value is greater than 0.5
+            val = data[j]
+            idx = indices[j]
+            scores[idx] += val
+            
+        indices_slice: np.ndarray = indices[start:end]
+        diff = end - start
+        doc_indices_with_data[diwd_ptr:diwd_ptr+diff] = indices_slice
+        diwd_ptr = diwd_ptr + diff
+        # data_slice: np.ndarray = data[start:end]
+        # scores[indices_slice] += data_slice
 
-    return scores
+    doc_indices_with_data = doc_indices_with_data[:diwd_ptr]
+    return scores, doc_indices_with_data

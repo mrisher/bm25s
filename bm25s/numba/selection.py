@@ -84,7 +84,7 @@ def heap_pop(values, indices, length):
 
 
 @njit()
-def _numba_sorted_top_k(array: np.ndarray, k: int, sorted=True):
+def _numba_sorted_top_k(array: np.ndarray, k: int, indices_with_data, sorted=True):
     n = len(array)
     if k > n:
         k = n
@@ -93,7 +93,10 @@ def _numba_sorted_top_k(array: np.ndarray, k: int, sorted=True):
     indices = np.zeros(k, dtype=np.int32)
     length = 0
 
-    for i, value in enumerate(array):
+    # for i in range(n):
+    for i in indices_with_data:
+        value = array[i]
+
         if length < k:
             heap_push(values, indices, value, i, length)
             length += 1
