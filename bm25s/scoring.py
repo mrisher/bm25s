@@ -354,11 +354,13 @@ def _compute_relevance_from_scores_jit_ready(
             val = data[j]
             idx = indices[j]
             scores[idx] += val
+            doc_indices_with_data[diwd_ptr] = idx
+            diwd_ptr += 1
             
-        indices_slice: np.ndarray = indices[start:end]
-        diff = end - start
-        doc_indices_with_data[diwd_ptr:diwd_ptr+diff] = indices_slice
-        diwd_ptr = diwd_ptr + diff
+        # indices_slice: np.ndarray = indices[start:end]
+        # diff = end - start
+        # doc_indices_with_data[diwd_ptr:diwd_ptr+diff] = indices_slice
+        # diwd_ptr = diwd_ptr + diff
         # data_slice: np.ndarray = data[start:end]
         # scores[indices_slice] += data_slice
 
